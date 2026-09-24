@@ -12,9 +12,9 @@ export const ACCOUNT_TYPES = [
   { value: 'other', label: '其他' }
 ]
 
-export const INCOME_CATEGORIES = ['工资', '兼职', '红包', '理财']
+export const DEFAULT_INCOME_CATEGORIES = ['工资', '兼职', '红包', '理财']
 
-export const EXPENSE_CATEGORIES = ['餐饮', '交通', '购物', '住房', '医疗', '教育', '娱乐', '人情', '其他']
+export const DEFAULT_EXPENSE_CATEGORIES = ['餐饮', '交通', '购物', '住房', '医疗', '教育', '娱乐', '人情', '其他']
 
 export const BUDGET_WARN_RATIO = 0.8
 
@@ -28,6 +28,7 @@ export const STORAGE_KEYS = {
   accounts: 'ffm.accounts',
   transactions: 'ffm.transactions',
   budgets: 'ffm.budgets',
+  categories: 'ffm.categories',
   savingsGoals: 'ffm.savingsGoals',
   user: 'ffm.user',
   achievements: 'ffm.achievements',

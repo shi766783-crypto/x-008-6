@@ -75,6 +75,9 @@ export default {
     const tab = ref('dashboard')
     const sidebarOpen = ref(false)
 
+    if (!controllersApi.seed.hasSeeded()) {
+      controllersApi.seed.seedDemoData()
+    }
     refresh()
     controllersApi.achievement.updateAchievements()
     refresh()

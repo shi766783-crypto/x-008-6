@@ -4,6 +4,7 @@ import { todayStr, toDateStr } from '../../core/utils.js'
 import { loadAccounts, saveAccounts } from './accountController.js'
 import { saveTransactions } from './transactionController.js'
 import { saveBudgets } from './budgetController.js'
+import { defaultCategories, saveCategories } from './categoryController.js'
 import { saveGoals } from './savingsGoalController.js'
 import { saveUser } from './userController.js'
 
@@ -22,6 +23,8 @@ export function hasSeeded() {
 
 export function seedDemoData() {
   if (hasSeeded()) return
+
+  saveCategories(defaultCategories())
 
   const cash = { id: genId('acc'), name: '现金', type: 'cash', initialBalance: 2000, balance: 2000 }
   const bank = { id: genId('acc'), name: '工资卡', type: 'bank', initialBalance: 20000, balance: 20000 }
