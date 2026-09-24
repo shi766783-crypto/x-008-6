@@ -8,7 +8,7 @@ export const emptyTransactionForm = () => ({
   accountId: '',
   toAccountId: '',
   amount: '',
-  category: '餐饮',
+  category: '',
   date: todayStr(),
   note: '',
   isLarge: false

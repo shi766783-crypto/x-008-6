@@ -48,7 +48,7 @@
       <div class="card list">
         <div v-for="b in budgetRows" :key="b.id" class="list-row">
           <span class="row-main">
-            <b>{{ b.category }}</b>
+            <b>{{ b.category }} <span v-if="b.catDisabled" class="badge">已停用</span></b>
             <em>已用 ¥{{ money(b.used) }} / ¥{{ money(b.limit) }}</em>
           </span>
           <span class="badge" :class="b.status">{{ b.status === 'danger' ? '超支' : b.status === 'warn' ? '预警' : '正常' }}</span>
@@ -103,6 +103,7 @@ const amtText = (t) =>
   t.type === TRANSACTION_TYPES.INCOME ? `+¥${money(t.amount)}` : t.type === TRANSACTION_TYPES.EXPENSE ? `-¥${money(t.amount)}` : `¥${money(t.amount)}`
 
 const currentMonth = computed(() => new Date().toISOString().slice(0, 7))
+const disabledExpenseNames = computed(() => new Set(store.categories.filter((c) => c.type === 'expense' && c.disabled).map((c) => c.name)))
 const budgetRows = computed(() => {
   const month = currentMonth.value
   return store.budgets
@@ -112,7 +113,7 @@ const budgetRows = computed(() => {
         .filter((t) => t.type === 'expense' && t.category === b.category && t.date.startsWith(month))
         .reduce((s, t) => s + t.amount, 0)
       const percent = b.limit > 0 ? used / b.limit : 0
-      return { ...b, used, status: percent > 1 ? 'danger' : percent >= BUDGET_WARN_RATIO ? 'warn' : 'ok' }
+      return { ...b, used, status: percent > 1 ? 'danger' : percent >= BUDGET_WARN_RATIO ? 'warn' : 'ok', catDisabled: disabledExpenseNames.value.has(b.category) }
     })
 })
 

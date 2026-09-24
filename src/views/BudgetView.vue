@@ -25,7 +25,10 @@
     <div class="budget-list">
       <div v-for="item in views" :key="item.id" class="card budget-item">
         <div class="budget-row">
-          <span class="budget-cat">{{ item.category }}</span>
+          <span class="budget-cat">
+            {{ item.category }}
+            <em v-if="item.catDisabled" class="off-badge">已停用</em>
+          </span>
           <span class="budget-nums">
             <b>{{ money(item.used) }}</b> / {{ money(item.limit) }}
             <em :class="statusClass(item)">{{ statusText(item) }}</em>
@@ -42,17 +45,21 @@
     </div>
 
     <div class="card setup-card">
-      <h3>设置本类预算</h3>
+      <div class="setup-head">
+        <h3>设置本类预算</h3>
+        <button class="link-btn" @click="managerOpen = true">管理类别</button>
+      </div>
       <form class="setup-form" @submit.prevent="applySetup">
         <select v-model="setup.category">
-          <option v-for="c in EXPENSE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
+          <option v-if="activeExpense.length === 0" value="" disabled>暂无可用类别，请先新增</option>
+          <option v-for="c in activeExpense" :key="c.id" :value="c.name">{{ c.name }}</option>
         </select>
         <input v-model.number="setup.limit" type="number" min="0" step="0.01" placeholder="每月预算上限" />
         <button class="btn btn-primary" type="submit">保存预算</button>
       </form>
       <div class="chips">
         <button v-for="b in allBudgets" :key="b.id" class="chip" @click="quickEdit(b)">
-          {{ b.category }} ¥{{ money(b.limit) }}
+          {{ b.category }}{{ disabledNames.has(b.category) ? '（已停用）' : '' }} ¥{{ money(b.limit) }}
         </button>
       </div>
     </div>
@@ -74,24 +81,37 @@
           <button type="submit" class="btn btn-primary" form="budget-form">保存</button>
         </template>
     </Modal>
+
+    <CategoryManager v-if="managerOpen" @close="managerOpen = false" />
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watchEffect } from 'vue'
 import { useStore, refreshKeys, controllersApi } from '../data/store.js'
 import { money } from '../core/utils.js'
-import { EXPENSE_CATEGORIES, BUDGET_WARN_RATIO } from '../core/constants.js'
+import { BUDGET_WARN_RATIO } from '../core/constants.js'
 import Modal from '../components/Modal.vue'
+import CategoryManager from '../components/CategoryManager.vue'
 
 const store = useStore()
 const { budget: budgetApi } = controllersApi
 
 const currentMonth = new Date().toISOString().slice(0, 7)
-const setup = reactive({ category: EXPENSE_CATEGORIES[0], limit: '' })
+const setup = reactive({ category: '', limit: '' })
 const modalOpen = ref(false)
+const managerOpen = ref(false)
 const editing = ref(null)
 const editLimit = ref('')
+
+// 预算设置只列启用中的支出类别；已停用类别的存量预算保留并标注
+const activeExpense = computed(() => store.categories.filter((c) => c.type === 'expense' && !c.disabled))
+const disabledNames = computed(() => new Set(store.categories.filter((c) => c.type === 'expense' && c.disabled).map((c) => c.name)))
+
+watchEffect(() => {
+  const names = activeExpense.value.map((c) => c.name)
+  if (!names.includes(setup.category)) setup.category = names[0] || ''
+})
 
 const allBudgets = computed(() => store.budgets.filter((b) => b.month === currentMonth))
 const views = computed(() =>
@@ -102,7 +122,7 @@ const views = computed(() =>
         .reduce((s, t) => s + t.amount, 0)
       const limit = b.limit
       const percent = limit > 0 ? Math.round((used / limit) * 100) : 0
-      return { ...b, used, percent, remaining: limit - used }
+      return { ...b, used, percent, remaining: limit - used, catDisabled: disabledNames.value.has(b.category) }
     })
     .sort((a, b) => b.percent - a.percent)
 )
@@ -114,7 +134,7 @@ const statusClass = (item) => (item.percent > 100 ? 'danger' : item.percent >= B
 const statusText = (item) => (item.percent > 100 ? '超支' : item.percent >= BUDGET_WARN_RATIO * 100 ? '预警' : `已用 ${item.percent}%`)
 
 const applySetup = () => {
-  if (!setup.limit || Number(setup.limit) <= 0) return
+  if (!setup.category || !setup.limit || Number(setup.limit) <= 0) return
   budgetApi.upsertBudget(setup.category, currentMonth, setup.limit)
   refreshKeys('budgets')
   setup.limit = ''
@@ -167,6 +187,18 @@ const saveEdit = () => {
 .budget-cat {
   font-weight: 700;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.off-badge {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--expense);
+  background: rgba(244, 91, 105, 0.12);
 }
 .budget-nums {
   font-size: 13px;
@@ -206,6 +238,14 @@ const saveEdit = () => {
 }
 .setup-card {
   max-width: 560px;
+}
+.setup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.setup-head h3 {
+  margin: 0;
 }
 .setup-form {
   display: flex;

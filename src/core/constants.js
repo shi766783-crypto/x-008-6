@@ -12,9 +12,12 @@ export const ACCOUNT_TYPES = [
   { value: 'other', label: '其他' }
 ]
 
+// 内置默认类别：仅用于首次初始化类别注册表，运行期类别以 categoryController 为准
 export const INCOME_CATEGORIES = ['工资', '兼职', '红包', '理财']
 
 export const EXPENSE_CATEGORIES = ['餐饮', '交通', '购物', '住房', '医疗', '教育', '娱乐', '人情', '其他']
+
+export const CATEGORY_NAME_MAX = 10
 
 export const BUDGET_WARN_RATIO = 0.8
 
@@ -28,6 +31,7 @@ export const STORAGE_KEYS = {
   accounts: 'ffm.accounts',
   transactions: 'ffm.transactions',
   budgets: 'ffm.budgets',
+  categories: 'ffm.categories',
   savingsGoals: 'ffm.savingsGoals',
   user: 'ffm.user',
   achievements: 'ffm.achievements',

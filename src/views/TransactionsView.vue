@@ -5,7 +5,10 @@
         <h2>记账</h2>
         <p class="page-sub">收入、支出与转账，一目了然</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">＋ 记一笔</button>
+      <div class="head-actions">
+        <button class="btn" @click="managerOpen = true">类别管理</button>
+        <button class="btn btn-primary" @click="openCreate">＋ 记一笔</button>
+      </div>
     </div>
 
     <div class="filters card">
@@ -17,10 +20,10 @@
       <select v-model="filters.category" class="filter-select">
         <option value="">全部类别</option>
         <optgroup v-if="filters.type !== 'transfer'" label="收入">
-          <option v-for="c in INCOME_CATEGORIES" :key="c" :value="c">{{ c }}</option>
+          <option v-for="c in incomeCategories" :key="c.id" :value="c.name">{{ c.name }}{{ c.disabled ? '（已停用）' : '' }}</option>
         </optgroup>
         <optgroup v-if="filters.type !== 'income'" label="支出">
-          <option v-for="c in EXPENSE_CATEGORIES" :key="c" :value="c">{{ c }}</option>
+          <option v-for="c in expenseCategories" :key="c.id" :value="c.name">{{ c.name }}{{ c.disabled ? '（已停用）' : '' }}</option>
         </optgroup>
       </select>
       <label class="check">
@@ -82,7 +85,7 @@
         <label class="field" v-if="form.type !== 'transfer'">
           <span>类别</span>
           <select v-model="form.category">
-            <option v-for="c in currentCategories" :key="c" :value="c">{{ c }}</option>
+            <option v-for="c in currentCategories" :key="c.id" :value="c.name">{{ c.name }}</option>
           </select>
         </label>
 
@@ -108,6 +111,8 @@
           <button type="submit" class="btn btn-primary" form="tx-form">保存</button>
         </template>
     </Modal>
+
+    <CategoryManager v-if="managerOpen" @close="managerOpen = false" />
   </div>
 </template>
 
@@ -115,8 +120,9 @@
 import { reactive, ref, computed } from 'vue'
 import { useStore, refreshKeys, controllersApi } from '../data/store.js'
 import { money, todayStr } from '../core/utils.js'
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, TRANSACTION_TYPES } from '../core/constants.js'
+import { TRANSACTION_TYPES } from '../core/constants.js'
 import Modal from '../components/Modal.vue'
+import CategoryManager from '../components/CategoryManager.vue'
 
 const store = useStore()
 const { transaction: txApi } = controllersApi
@@ -124,17 +130,24 @@ const { transaction: txApi } = controllersApi
 const TYPE_LABELS = { income: '收入', expense: '支出', transfer: '转账' }
 
 const modalOpen = ref(false)
+const managerOpen = ref(false)
 const editing = ref(null)
 const form = reactive(txApi.emptyTransactionForm())
 const filters = reactive({ keyword: '', type: '', category: '', largeOnly: false })
 
+// 筛选器列出全部类别（含停用，便于查历史）；记账表单只列启用中的类别
+const incomeCategories = computed(() => store.categories.filter((c) => c.type === 'income'))
+const expenseCategories = computed(() => store.categories.filter((c) => c.type === 'expense'))
+const activeIncome = computed(() => incomeCategories.value.filter((c) => !c.disabled))
+const activeExpense = computed(() => expenseCategories.value.filter((c) => !c.disabled))
+
 const switchType = (type) => {
   form.type = type
-  form.category = type === 'income' ? INCOME_CATEGORIES[0] : EXPENSE_CATEGORIES[0]
+  form.category = (type === 'income' ? activeIncome.value : activeExpense.value)[0]?.name || ''
   form.toAccountId = ''
 }
 
-const currentCategories = computed(() => (form.type === TRANSACTION_TYPES.INCOME ? INCOME_CATEGORIES : EXPENSE_CATEGORIES))
+const currentCategories = computed(() => (form.type === TRANSACTION_TYPES.INCOME ? activeIncome.value : activeExpense.value))
 const otherAccounts = computed(() => store.accounts.filter((a) => a.id !== form.accountId))
 
 const visibleTransactions = computed(() => {
@@ -166,12 +179,21 @@ const renderMeta = (t) => {
 
 const openCreate = () => {
   editing.value = null
-  Object.assign(form, txApi.emptyTransactionForm(), { accountId: store.accounts[0]?.id || '', toAccountId: store.accounts[1]?.id || '', date: todayStr() })
+  Object.assign(form, txApi.emptyTransactionForm(), {
+    accountId: store.accounts[0]?.id || '',
+    toAccountId: store.accounts[1]?.id || '',
+    category: activeExpense.value[0]?.name || '',
+    date: todayStr()
+  })
   modalOpen.value = true
 }
 
 const submit = () => {
   if (!form.accountId || !form.amount) return
+  if (form.type !== 'transfer' && !form.category) {
+    alert('没有可用的类别，请先在「类别管理」中新增或启用一个类别')
+    return
+  }
   if (form.type === 'transfer' && form.accountId === form.toAccountId) {
     alert('转账账户不能相同')
     return
@@ -193,6 +215,10 @@ const remove = (t) => {
 </script>
 
 <style scoped>
+.head-actions {
+  display: flex;
+  gap: 10px;
+}
 .filters {
   display: flex;
   flex-wrap: wrap;
